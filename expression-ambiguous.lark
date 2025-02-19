@@ -1,0 +1,33 @@
+?exp: INT | FLOAT | NAMED_CONSTANT
+    | exp BINOP exp    
+    | variable
+    | UNOP exp    
+    | BUILTIN_FUN1 "(" exp ")"
+    | BUILTIN_FUN2 "(" exp "," exp ")"     
+    | "(" exp ")"
+
+
+variable: ID | ID "[" exp "]"
+
+// Define the INT terminal
+INT: /0b[01]+/  // Binary notation
+    | /0x[0-9a-fA-F]+/  // Hexadecimal notation
+    | /\d+/  // Decimal notation
+
+// Define the FLOAT terminal
+FLOAT: /[+-]?\d+\.\d+([eE][+-]?\d+)?/  // i) an optional sign prefix, ii) a nonzero number of digits to the left of the period, iii) a non-optional period, iv) a nonzero number of digits to the right of the period, v) an optional power of ten on the form: “e” followed by an optional sign followed by a nonzero number of digits
+
+ID.-1:         /[a-zA-Z][a-zA-Z0-9_]*/
+
+NAMED_CONSTANT: "pi" 
+BUILTIN_FUN1:   "sin" | "arcsin" | "cos" | "arccos" | "tan" | "exp" | "sqrt"
+BUILTIN_FUN2:   "arctan2" 
+
+BINOP: "**" | "==" | "<"| "*"|"/"|"&"|"xor"|"^"|"+"|"-"|"|"|"%"|"<>"|"swap"
+
+UNOP:  "!" | "not" // Logical negation
+    |  "~" // Binary negation
+    |  "-" // Unary minus
+
+WHITESPACE: /[\ \t\n\r\f]+/
+%ignore WHITESPACE
