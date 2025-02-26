@@ -100,56 +100,60 @@ def show_statement(s):
         raise Exception(f"Error evaluating rule {rule} for node {s}") 
 
 
+def show_lval(lv):
+    rule = [node_name(c) for c in lv.children]
+    match(rule):
+        case ['ID']: return f"{lv.children[0].value}"
+        case ['ID', 'exp']:
+            [id, exp] = lv.children
+            return f"{id.value}[{show_exp(exp)}]"
+    raise BaseException(f"{rule} pattern not implemented in {lv.pretty()}")
 
-def show_exp(e, depth=0, debug=0):
+def show_exp(e):
     # Is this a terminal (a leaf node), or does e have children?
-    
     match(node_name(e)):
-        case 'NUMERICAL_VALUE': return f"{e}"
-        case 'INT':             return f"{e.value}"
-        case 'FLOAT':           return f"{e.value}"
-        case 'NAMED_CONSTANT':  return f"{e.value}"
-    
+        case 'INT' | 'FLOAT': return f"/*{node_name(e)}*/{e.value}\n"
+            
     # e has children to process, extract pattern:
-    rule = node_rule(e, "exp")
+    try:
+        rule  = [node_name(c) for c in e.children]
+    except:
+        raise f"AST error in {e.pretty()}"
         
-    if(debug): 
-        print(f"{' '*depth}",depth, rule)
     
     match(rule):
-        # case [_]: # Redundant exp node
-        #     [exp] = e.children
-        #     return show_exp(exp,depth+1)
-        case ['UNOP', _]:       # Unary operation node
-            unop,exp = e.children
-            s1 = show_exp(exp,depth+1)
+        case ['exp']:
+            [e1] = e.children
+            return f"{show_exp(e1)}" 
+
+        case ['INT'] | ['FLOAT'] | ['NAMED_CONSTANT']:
+            [c] = e.children
+            return f"{c.value}"
+        
+        case ['lval']:
+            return show_lval(e.children[0])
+        
+        case ['UNOP', 'exp']:       # Unary operatio`n node
+            unop,e1 = e.children
+            s1 = show_exp(e1)
             return f"({unop} {s1})"
 
-        case [_,'BINOP',_] | [_,'PE',_] | [_,'MD',_] | [_,'AS',_] | [_,'CMP',_]:  # Binary operation node
+        case ['exp','BINOP','exp']:  # Binary operation node
             exp1, binop, exp2 = e.children
-            s1, s2 = show_exp(exp1,depth+1), show_exp(exp2,depth+1)
+            s1, s2 = show_exp(exp1), show_exp(exp2)
             return f"({s1} {binop} {s2})"
 
-        case ['BUILTIN_FUN1', _]: # Built-in function with one argument
+        case ['BUILTIN_FUN1', 'exp']: # Built-in function with one argument
             fun, e1 = e.children
-            s1 = show_exp(e1,depth+1)
+            s1 = show_exp(e1)
             return f"{fun}({s1})"
         
-        case ['BUILTIN_FUN2', _, _]: # Built-in function with two arguments
+        case ['BUILTIN_FUN2', 'exp', 'exp']: # Built-in function with two arguments
             fun, e1, e2 = e.children
-            s1, s2 = show_exp(e1,depth+1), show_exp(e2,depth+1)
+            s1, s2 = show_exp(e1), show_exp(e2)
             return f"{fun}({s1},{s2})"
         
-        case ['ID']: # Scalar variable node
-            [var] = e.children
-            return f"{var}"
-
-        case ['ID', _]: # Array element node
-            [var,e1] = e.children
-            v1 = show_exp(e1,depth+1)
-            return f"{var}[{v1}]"
-        
-    raise Exception(f"{rule} pattern not implemented in {e.pretty()}")
+    raise BaseException(f"{rule} pattern not implemented in {e.pretty()}")
 
 
 def show_declaration(d):
@@ -176,7 +180,7 @@ def show_declaration(d):
             raise Exception(f"Unrecognized rule {rule} in declaration {d}")                    
 
 def show_lval(v):
-    if not hasattr(v, 'children'): return f"{v}" # Allow IDs to be lvals
+    # if not hasattr(v, 'children'): return f"{v}" # Allow IDs to be lvals
 
     rule = node_rule(v, "lval")
 
@@ -219,4 +223,4 @@ def show_gate(g):
             return f"{R}({se})"
         case _:
             raise Exception(f"Unrecognized rule {rule} in gate {g}")
-        
+
