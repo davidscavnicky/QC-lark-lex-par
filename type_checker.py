@@ -1,5 +1,5 @@
 from lark import Lark
-from helpers import show_program
+from show import show_program
 
 # Load the grammar from the CQ.lark file
 parser = Lark.open("CQ.lark", start="program")
