@@ -4,6 +4,7 @@ from lark.lexer import Token
 from ast import literal_eval
 import numpy as np
 import sys
+from copy import deepcopy
 
 # Lark nodes can be Token (corresponding to TERMINALS) or Tree (corresponding to nonterminals).
 # This helper function unifies the slightly different things you need to do to get their types: 
@@ -34,6 +35,55 @@ def is_numeric(x):
     return (type(x) == bool or type(x) == np.bool or 
             type(x) == int or type(x) == float or 
             type(x) == np.float64 or type(x) == np.int64)
+
+
+def prune_exp(exp):
+    '''Produce a simplified AST in the specification grammar from a parse-tree in the disambiguated grammar.
+       1. Prunes auxiliary nonterminals introduced for disambiguous operator precedence and associativity when parsing.
+       2. Re-merges binary operations that were split as AS (+,-), MD (*,/,%), CMP (==,!=,<,>,<=,>=), and PE (**) back into BINOP.
+    '''
+
+    # Rewrite tokens, merging exp1, exp2, exp3, exp4 into exp
+    if isinstance(exp, Token):
+        if exp.type == 'RULE' and 'exp' in exp.value:
+            #print(f"Replacing token {exp} with 'exp'")
+            return Token('RULE','exp')
+        return deepcopy(exp)
+    
+     # If exp is not Token, it must be Tree - another type means something is wrong. Catch this error.
+    assert(isinstance(exp,Tree))
+    
+    # Prune auxiliary nonterminals introduced for disambiguous operator precedence and associativity when parsing
+    result = deepcopy(exp)
+    if isinstance(exp.data, Token):
+        match(exp.data.value):
+            case 'exp1' | 'exp2' | 'exp3' | 'exp4':
+                result.data = Token('RULE','exp')
+                if (exp.data.value != 'exp4'): # Collapse all levels between exp and exp4
+                    match(exp.children):
+                        case [_]:
+                            # print(f"Pruning aux nonterminal {exp.data} (#children = {len(exp.children)})")                    
+                            return prune_exp(exp.children[0])
+
+    # Re-merge binary operations that were split as AS (+,-), MD (*,/,%), CMP (==,!=,<,>,<=,>=), and PE (**) back into BINOP
+    rule = node_rule(exp,"exp")
+    
+    match(rule):
+        case [_,'CMP',_] | [_,'AS',_] | [_,'MD',_] | [_,'PE',_]:
+            result.children[1] = Token('BINOP',exp.children[1].value)
+
+    # Recurse on children
+    for i, c in enumerate(result.children):
+        if(type(c) == Tree):
+            # print(f"Recursing on {c.data}")
+            result.children[i] = prune_exp(c)
+    
+    return result
+
+def parse_and_prune(parser,expstring):
+    '''Parse the expression and prune the AST back to the specification grammar.'''
+    return prune_exp(parser.parse(expstring))        
+        
 
 # Helper functions for interpretation
 named_constants = {'pi': np.pi}
