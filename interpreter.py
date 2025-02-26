@@ -1,5 +1,6 @@
 from lark import Lark, Transformer
 from helpers import evaluate_binop, evaluate_unop, evaluate_fun, named_constants
+from ast import literal_eval
 
 class CQInterpreter(Transformer):
     def __init__(self):

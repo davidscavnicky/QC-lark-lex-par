@@ -100,15 +100,6 @@ def show_statement(s):
         raise Exception(f"Error evaluating rule {rule} for node {s}") 
 
 
-def show_lval(lv):
-    rule = [node_name(c) for c in lv.children]
-    match(rule):
-        case ['ID']: return f"{lv.children[0].value}"
-        case ['ID', 'exp']:
-            [id, exp] = lv.children
-            return f"{id.value}[{show_exp(exp)}]"
-    raise BaseException(f"{rule} pattern not implemented in {lv.pretty()}")
-
 def show_exp(e):
     # Is this a terminal (a leaf node), or does e have children?
     match(node_name(e)):
@@ -180,7 +171,7 @@ def show_declaration(d):
             raise Exception(f"Unrecognized rule {rule} in declaration {d}")                    
 
 def show_lval(v):
-    # if not hasattr(v, 'children'): return f"{v}" # Allow IDs to be lvals
+#    if not hasattr(v, 'children'): return f"{v}" # Allow IDs to be lvals
 
     rule = node_rule(v, "lval")
 
@@ -223,4 +214,3 @@ def show_gate(g):
             return f"{R}({se})"
         case _:
             raise Exception(f"Unrecognized rule {rule} in gate {g}")
-
