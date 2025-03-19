@@ -7,9 +7,11 @@ from helpers import node_rule, make_constant
 from PEjames import evaluate_exp
 import numpy as np
 import cmath
+import networkx as nx
+from cnotrouting import *
 
 
-def synthesize(program: Tree) -> Tree:
+def synthesize(program: Tree, topology: nx.Graph) -> Tree:
 
     [procedure] = program.children
     [_, _, procedure_stmt] = procedure.children 
@@ -20,7 +22,7 @@ def synthesize(program: Tree) -> Tree:
 
     for statement in statements.children:
 
-        synthesized_statements.extend(synthesize_statement(statement))
+        synthesized_statements.extend(synthesize_statement(statement, topology))
 
     synthesized_program = deepcopy(program)
 
@@ -28,7 +30,10 @@ def synthesize(program: Tree) -> Tree:
 
     return synthesized_program
 
-def synthesize_statement(statement: Tree) -> List[Branch[Token]]:
+def synthesize_statement(statement: Tree, topology: nx.Graph) -> List[Branch[Token]]:
+        """
+        Synthesize a quantum statement, including CNOT routing.
+        """    
 
         rule = node_rule(statement, "statement")
 
@@ -39,7 +44,8 @@ def synthesize_statement(statement: Tree) -> List[Branch[Token]]:
 
                 s_qupdates = synthesize_qupdate(qupdate)
 
-                return [wrap_qupdate(statement, sq) for sq in s_qupdates]
+                #return [wrap_qupdate(statement, sq) for sq in s_qupdates]
+                return [Tree(Token('RULE', 'qupdate'), sq.children) for sq in add_cnot_routing(s_qupdates, topology)]
 
             case ['MEASURE','lval','lval']:
 
