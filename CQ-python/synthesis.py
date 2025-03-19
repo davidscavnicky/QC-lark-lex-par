@@ -61,7 +61,7 @@ def synthesize_qupdate(qupdate: Tree) -> List[Tree[Token]]:
             return synthesize_H(lval)
 
         case ['NOT']:
-            return synthesize_H(lval)
+            return synthesize_Rx(np.pi, lval)
 
         case ['rgate', _]:
 
