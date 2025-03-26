@@ -6,6 +6,7 @@ import numpy as np
 import sys
 from copy import deepcopy
 
+
 # Lark nodes can be Token (corresponding to TERMINALS) or Tree (corresponding to nonterminals).
 # This helper function unifies the slightly different things you need to do to get their types: 
 def node_name(t):
@@ -233,6 +234,52 @@ def max_type(t1,t2):
     except:
         return None
 
+    
+def params_of_type(params, t):
+    
+    for param in params.children:
+        rule = node_rule(param, "parameter_declaration")
+
+        match(rule):
+            case ['TYPE','ID']:
+                type, id = param.children
+                if(type == t):
+                    yield (id.value,None)
+            case ['TYPE','ID','INT']:
+                type, id, size = param.children
+                if(type == t):
+                    yield (id.value, int(size.value))
+            case ['TYPE','ID','ID']:
+                type, id, size = param.children
+                if(type == t):
+                    raise Exception(f"params_of_type: input parameter {id} has dynamic size {size}")
+            case _:
+                raise Exception(f"params_of_type: Unrecognized rule {rule} in parameter_declaration {param}")
+            
+def decls_of_type(decls, t):
+    for decl in decls.children:
+        rule = node_rule(decl, "declaration")
+        match(rule):
+            case ['TYPE','lval']:
+                type, lval = decl.children
+                if(type == t):
+                    (lval0,name, size, static) = PE_lval(lval)
+                    assert(static)
+                    if(size == None):
+                        yield (name,None)
+                    else:
+                        yield (name, int(size.children[0].value))
+            case ['TYPE','ID','exp']: # TYPE ID = exp, scalar iniialization
+                type, id, exp = decl.children
+                if(type == t):
+                    yield (id.value, None)
+            case ['TYPE','ID','INT','exp']: # TYPE ID[INT] = exp, array initialization                    
+                type, id, size, _ = decl.children
+                if(type == t):
+                    yield (id.value, int(size.value))
+            case _:
+                raise Exception(f"decls_of_type: Unrecognized rule {rule} in declaration {decl}")
+
 
 
 ########### HELPER FUNCTION FOR BUILDING LARK AST NODES. ADD MORE AS NEEDED ############
@@ -272,8 +319,7 @@ def make_exp(children):
 def make_skip_statement():
     return make_block([],[])
 
-def make_block(declarations, statements, condense="No longer used, kept for API compatibility"):
-        
+def make_block(declarations, statements):
     return Tree(Token('RULE','statement'),[Tree(Token('RULE', 'block'), 
                 [Tree(Token('RULE', 'declarations'), declarations), 
                  Tree(Token('RULE', 'statements'),   statements)])])
@@ -284,6 +330,11 @@ def make_lval(name, size_or_index=None):
     else: 
         return Tree(Token('RULE', 'lval'), [Token('ID', name), size_or_index])
     
+def make_lval_from_name(full_name):
+    lval_base      = array_base(full_name)
+    lval_index     = array_size(full_name)
+    return make_lval(lval_base, make_constant(int(lval_index)))
+    
 # We want the output from partial evaluation to be a valid CQ syntax tree. 
 # Hence we don't return fully evaluated sub-expressions as constants, but as exp -> (INT|FLOAT) 
 # trees, which are valid input to evaluate_exp.
@@ -292,3 +343,24 @@ def make_constant(v):
     else: data_type = 'FLOAT'
     
     return Tree(Token('RULE','exp'), [Token(data_type, str(v))])
+
+def make_gate(name, *args):
+    if name[0] == 'R':
+        theta = args[0]
+        return Tree('gate', [Tree('rgate', [Token('__ANON_1', name)]), make_constant(theta)])
+    else:
+        return Tree('gate', [Token(name.upper(), name)])
+    
+def make_statement(children):
+    return Tree(Token('RULE', 'statement'), children)
+
+def make_qupdate(gate, lval): # TODO: SWAPS! 
+    return Tree(Token('RULE', 'qupdate'), [gate, lval])
+
+def make_swap(lval1, lval2):
+    return Tree(Token('RULE', 'qupdate'), [Token('SWAP', 'swap'), lval1, lval2])
+
+def make_controlled_qupdate(control_lval, target_lval, gate, *args):
+    return make_statement([make_qupdate(gate, target_lval), Token('IF', 'if'), control_lval])
+
+

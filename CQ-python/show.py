@@ -68,7 +68,7 @@ def show_statement(s,depth=0):
             case ['qupdate','IF','lval']:# Conditional quantum update
                 [qupdate,_,lval] = s.children
                 sq, sc = show_qupdate(qupdate), show_lval(lval)
-                return f"{prefix}{sq} if {sc}) ;"
+                return f"{prefix}{sq} if {sc} ;"
 
             case ['MEASURE','lval','lval']: # qbit measurement
                 [_,qbit,cbit]   = s.children
@@ -99,7 +99,7 @@ def show_statement(s,depth=0):
             case _: 
                 raise Exception(f"Unrecognized rule: {rule} in show_statement {s}")
     except Exception as e:
-        print(f"show_statement: {e} when evaluating {rule} in {s.pretty()}")
+        print(f"show_statement: {e} when evaluating {rule} in {s}")
         raise e       
         
 
@@ -113,7 +113,7 @@ def show_exp(e):
     try:
         rule  = [node_name(c) for c in e.children]
     except:
-        raise f"AST error in {e.pretty()}"
+        raise f"AST error in {e}"
         
     
     match(rule):
@@ -217,11 +217,15 @@ def show_gate(g):
             return "H"
         case ['SX']:
             return "SX"            
+        case ['SY']:
+            return "SY"            
+        case ['SZ']:
+            return "SZ"                            
         case ["rgate",_]:
             rgate, angle_exp = g.children
             [R] = rgate.children
             se = show_exp(angle_exp)
-            return f"{R}({se})"
+            return f"{R.value}({se})"
         case _:
             raise Exception(f"Unrecognized rule {rule} in gate {g}")
 
